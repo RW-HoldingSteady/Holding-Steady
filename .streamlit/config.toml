@@ -1,0 +1,11 @@
+[theme]
+
+primaryColor="#C89D7C"
+backgroundColor="#C89D7C"
+secondaryBackgroundColor="#F5FEFD"
+textColor="#050607"
+font="Comfortaa:https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap"
+baseFontWeight=700
+
+[server]
+port = 8501
