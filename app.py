@@ -24,7 +24,7 @@ with st.sidebar:
     st.space("xxlarge")
 
     st.header("Emotional Support Buddy")
-    st.video("/Users/Rikuto/Desktop/Delta AI/Moufu_vid.mp4")
+    st.video("Moufu_vid.mp4")
     
 
 
