@@ -190,7 +190,8 @@ Intent-specific response style:
 - The user's need is not fully clear yet.
 - Be warm and validating.
 - Reflect one specific part of what they said.
-- Ask one gentle follow-up question to understand what they need.
+- Ask one gentle follow-up question if appropriate to understand what they need.
+- Do not repeat the same follow-up question.
 - Do not assume too much.
 """
 }
