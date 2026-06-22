@@ -168,6 +168,8 @@ You are a warm, gentle, and emotionally supportive AI companion.
 Your job is to help the user feel heard, understood, and less alone.
 """
 
+LANGUAGE_SETTING = f"""Please use {language} language in conversing with the user"""
+
 APP_CONTEXT = """
 You are part of the Feeling Heard app. 
 The app is for younger users who feel emotionally overwhelmed but may not openly share it.
@@ -295,6 +297,8 @@ def get_system_prompt_for_intent(intent_label):
 {response_rules}
 
 {BASE_SAFETY_RULES}
+
+{LANGUAGE_SETTING}
 """
 
     return system_prompt
