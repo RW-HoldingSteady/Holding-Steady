@@ -4,34 +4,96 @@ from google.genai import types
 import json
 import time
 
-st.title("🧶 Holding Steady")
+
+########## TRANSLATION DICTIONARY
+TEXT = {
+    "English":{
+        "title": "🧶 Holding Steady",
+        "caption": "'I believe we can do it, because we are thinking about it now.'",
+        "about": "About",
+        "description": "A supportive chatbot designed for thoughtful and empathetic conversations.",
+        "clear": "Clear Chat",
+        "moufu": "Emotional Support Buddy",
+        "welcome_message": "Hi, what's on your mind today?",
+        "starters": "What's going on?",
+        "option1": "🐘 Weighing on me",
+        "option2": "🦥 Not under control",
+        "option3": "🦇 Underappreciated",
+        "option4": "🐆 Tired",
+        "option5": "🐕 Can you listen?",
+        "option6": "🦔 Something happened"
+    },
+    "日本語":{
+        "title": "🧶 ホールディング・ステディー",
+        "caption": "「私はできると信じている。なぜなら、今、私たちはそれについて考えているからだ。」",
+        "about": "アプリについて",
+        "description": "悩み事や感情を打ち明けることのできるメンタルサポートアプリ",
+        "clear": "チャットを削除",
+        "moufu": "マスコット",
+        "welcome_message": "今日は何を感じていますか？",
+        "starters": "オプション",
+        "option1": "🐘 重流を感じる",
+        "option2": "🦥 安定感がない",
+        "option3": "🦇 過小評価されている",
+        "option4": "🐆 疲れた",
+        "option5": "🐕 聞いてほしい",
+        "option6": "🦔 何かがあった"
+    }
+}
+
+language = st.sidebar.selectbox(
+    "Language (言語)",
+    ["English", "日本語"],
+)
+
+st.title(TEXT[language]["title"])
 
 st.caption(
-    "'I believe we can do it, because we are thinking about it now.'",
+    TEXT[language]["caption"]
+)
+
+##### Custom button styling
+st.markdown(
+    """
+    <style>
+    .stButton button p {
+        font-size: 15px;
+    }
+    div.stButton > button {
+        border-radius: 999px;
+        padding: 0.3rem 0.8 rem;
+        width: auto;
+    }
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+    }
+    </style>
+    """, 
+    unsafe_allow_html=True
 )
 
 with st.sidebar:
-    st.header("About")
+    st.space("xsmall")
+
+    st.header(TEXT[language]["about"])
 
     st.write(
-        "A supportive chatbot designed for thoughtful and empathetic conversations."
+        TEXT[language]["description"]
     )
 
-    if st.button("Clear Chat"):
+    if st.button(TEXT[language]["clear"]):
         st.session_state.chat_state = None
         st.rerun()
 
-    st.space("xxlarge")
+    st.space("medium")
 
-    st.header("Emotional Support Buddy")
-    st.video("Moufu_vid.mp4", autoplay=True, muted=True)
-    
-
+    st.header(TEXT[language]["moufu"])
+    st.video("/Users/Rikuto/Desktop/Delta AI/Moufu_vid.mp4", autoplay=True, muted=True)
 
 
 ############# CONFIGURE CHAT
 
-GEMINI_API_KEY = st.secrets["API_KEY"]
+GEMINI_API_KEY = "AIzaSyCqRhuhsY05poAF_3HWZHvDAiFR3zVxpG0"
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 ######## FIX VARIABLES
@@ -326,22 +388,13 @@ def continue_chat(chat_state, new_user_message):
 
 
 
-
-######## CHAT INPUT
-
-user_input = st.chat_input(
-    "Type your message here..."
-)
-
-
 ####### CHAT LOGIC
 
 if "chat_state" not in st.session_state:
     st.session_state.chat_state = None
 
-
 with st.chat_message("assistant"):
-    st.markdown("Hello! How may I help you today?")
+    st.markdown(TEXT[language]["welcome_message"])
 
 if st.session_state.chat_state:
     messages = st.session_state.chat_state['messages']
@@ -350,7 +403,63 @@ if st.session_state.chat_state:
             st.markdown(message['content'])
 
 
+
+####### STARTER PROMPTS
+
+starter_prompt_area = st.empty()
+
+selected_prompt = None
+
+if st.session_state.chat_state is None:
+
+    with starter_prompt_area.container():
+
+        st.markdown(TEXT[language]["starters"])
+
+        starter_prompts = [
+            TEXT[language]["option1"],
+            TEXT[language]["option2"],
+            TEXT[language]["option3"],
+            TEXT[language]["option4"],
+            TEXT[language]["option5"],
+            TEXT[language]["option6"]
+        ]
+
+        cols = st.columns(3)
+
+        for i, prompt in enumerate(starter_prompts):
+            with cols[i % 3]:
+                if st.button(prompt, type="primary"):
+
+                    #Remove prompt area
+                    starter_prompt_area.empty()
+
+                    with starter_prompt_area.container():
+                        st.markdown("*Got it...*")
+                    
+                    time.sleep(0.3)
+
+                    selected_prompt = prompt
+
+                    # Start chat
+                    st.session_state.chat_state = start_chat(prompt)
+
+                    st.rerun()
+
+
+######## CHAT INPUT
+
+user_input = st.chat_input(
+    "Type your message here..."
+)
+
+if selected_prompt:
+    user_input = selected_prompt
+
+
 if user_input:
+
+    starter_prompt_area.empty()
 
     with st.chat_message("user"):
         st.markdown(user_input)
@@ -368,5 +477,17 @@ if user_input:
 
 
     with st.chat_message("assistant"):
+
         with st.spinner("Thinking..."):
-            st.markdown(bot_reply)
+            time.sleep(0.8)
+        
+        placeholder = st.empty()
+
+        displayed_text = ""
+
+        for word in bot_reply.split():
+            displayed_text += word + " "
+            placeholder.markdown(displayed_text + "▌")
+            time.sleep(0.06)
+
+        placeholder.markdown(displayed_text)
