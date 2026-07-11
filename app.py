@@ -581,7 +581,12 @@ Do NOT change the keys.
 
 Return ONLY valid JSON.
 
-{json.dumps(reflection)}
+Do not include markdown.
+Do not include ```json.
+Do not include explanations.
+Do not include any text before or after the JSON.
+
+{json.dumps(reflection, ensure_ascii=False)}
 """
     
     response = client.models.generate_content(
@@ -589,7 +594,27 @@ Return ONLY valid JSON.
         contents=prompt
     )
 
-    return json.loads(response.text)
+    text = response.text.strip()
+
+    #Remove markdown fences if Gemini adds them anyway
+    if text.startswith("```json"):
+        text = text.replace("```json", "", 1)
+
+    if text.startswith("```"):
+        text = text.replace("```", "", 1)
+
+    if text.endswith("```"):
+        text = text[:-3]
+
+    text = text.strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        st.error(TEXT[language]["error"])
+        st.write("Gemini returned:")
+        st.code(text)
+        return None
 
 
 #Allowing user to make reflection
