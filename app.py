@@ -788,5 +788,5 @@ if st.session_state.reflection_japanese is not None:
             data=f,
             file_name="Holding_Steady_Reflection_JP.pdf",
             mime="application/pdf",
-            type="secondary"
+            type="primary"
         )
