@@ -504,6 +504,9 @@ if user_input:
 if "reflection" not in st.session_state:
     st.session_state.reflection = None
 
+if "reflection_japanese" not in st.session_state:
+    st.session_state.reflection_japanese = None
+
 def conversation_to_text(chat_state):
 
     transcript = ""
@@ -638,11 +641,11 @@ if st.session_state.reflection is not None:
     )        
 
 
-if st.session_state.reflection:
+if st.session_state.reflection is not None:
     if display_language == "English":
         reflection = st.session_state.reflection
     else:
-        if st.session_state.reflection_japanese is None:
+        if st.session_state.get("reflection_japanese") is None:
             st.session_state.reflection_japanese = translate_reflection(
                 st.session_state.reflection
             )
