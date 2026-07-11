@@ -4,40 +4,57 @@ from google.genai import types
 import json
 import time
 
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.platypus import Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 
-########## TRANSLATION DICTIONARY
+##### TRANSLATION DICTIONARY
 TEXT = {
     "English":{
-        "title": "🧶 Holding Steady",
         "caption": "'I believe we can do it, because we are thinking about it now.'",
         "about": "About",
         "description": "A supportive chatbot designed for thoughtful and empathetic conversations.",
         "clear": "Clear Chat",
         "moufu": "Emotional Support Buddy",
         "welcome_message": "Hi, what's on your mind today?",
-        "starters": "What's going on?",
+        "starters": "Some options to get started...",
         "option1": "🐘 Weighing on me",
         "option2": "🦥 Not under control",
         "option3": "🦇 Underappreciated",
         "option4": "🐆 Tired",
         "option5": "🐕 Can you listen?",
-        "option6": "🦔 Something happened"
+        "option6": "🦔 Something happened",
+        "got_it": "Got it...",
+        "input_box": "Type your message here...",
+        "thinking": "Thinking...",
+        "error": "Couldn't create reflection. Please try again.",
+        "reflection": "Create Reflection",
+        "make_reflection": "Creating Reflection...",
+        "translate": "Translate",
+        "download": "Download Reflection"
     },
     "日本語":{
-        "title": "🧶 ホールディング・ステディー",
         "caption": "「私はできると信じている。なぜなら、今、私たちはそれについて考えているからだ。」",
         "about": "アプリについて",
         "description": "悩み事や感情を打ち明けることのできるメンタルサポートアプリ",
         "clear": "チャットを削除",
         "moufu": "マスコット",
-        "welcome_message": "今日は何を感じていますか？",
-        "starters": "オプション",
-        "option1": "🐘 重流を感じる",
-        "option2": "🦥 安定感がない",
+        "welcome_message": "今日は気分はどうですか？",
+        "starters": "チャットを始めるためのオプション",
+        "option1": "🐘 気分が重い",
+        "option2": "🦥 不安だ",
         "option3": "🦇 過小評価されている",
         "option4": "🐆 疲れた",
         "option5": "🐕 聞いてほしい",
-        "option6": "🦔 何かがあった"
+        "option6": "🦔 何かがあった",
+        "got_it": "考え中...",
+        "input_box": "メッセージを入力...",
+        "thinking": "考え中...",
+        "error": "作成できませんでした。もう一度お試しください。",
+        "reflection": "会話のまとめを作成",
+        "make_reflection": "作成中...",
+        "translate": "日本語に翻訳",
+        "download": "英語版をダウンロード"
     }
 }
 
@@ -46,13 +63,13 @@ language = st.sidebar.selectbox(
     ["English", "日本語"],
 )
 
-st.title(TEXT[language]["title"])
+st.title("🧶 Holding Steady")
 
 st.caption(
     TEXT[language]["caption"]
 )
 
-##### Custom button styling
+##### CUSTOM BUTTON STYLING
 st.markdown(
     """
     <style>
@@ -72,14 +89,13 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+##### SIDEBAR
 with st.sidebar:
     st.space("xsmall")
 
     st.header(TEXT[language]["about"])
 
-    st.write(
-        TEXT[language]["description"]
-    )
+    st.write(TEXT[language]["description"])
 
     if st.button(TEXT[language]["clear"]):
         st.session_state.chat_state = None
@@ -91,13 +107,11 @@ with st.sidebar:
     st.video("Moufu_vid.mp4", autoplay=True, muted=True)
 
 
-############# CONFIGURE CHAT
-
+##### CONFIGURE CHAT
 GEMINI_API_KEY = st.secrets["API_KEY"]
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-######## FIX VARIABLES
-
+##### FIX VARIABLES
 INTENT_LABELS = [
     "venting",
     "advice",
@@ -183,7 +197,7 @@ Important safety rules:
 - Do not claim to replace professional help.
 - If the user may be unsafe or in immediate danger, encourage them to contact emergency services or a trusted person now.
 - Keep the response warm, short, and easy to read.
-- Ask at most one gentle follow-up question.
+- Only when appropriate, ask one gentle follow-up question.
 """
 
 INTENT_RESPONSE_RULES = {
@@ -254,16 +268,13 @@ Intent-specific response style:
 - The user's need is not fully clear yet.
 - Be warm and validating.
 - Reflect one specific part of what they said.
-- Ask one gentle follow-up question if appropriate to understand what they need.
-- Do not repeat the same follow-up question.
+- Try to be sympathetic.
+- Give the user advice when they ask for it.
 - Do not assume too much.
 """
 }
 
-
-
 ##### HELPER FUNCTIONS
-
 def classify_first_message(user_message):
     response = client.models.generate_content(
         model="gemini-2.5-flash",
@@ -316,10 +327,10 @@ def format_conversation(messages):
 
 
 def generate_chat_reply(messages, system_prompt):
-    # format messages 
+    # Format messages 
     conversation_text = format_conversation(messages)
 
-    # prompt sharing existing messages and asking next reply
+    # Prompt sharing existing messages and asking next reply
     prompt = f""" 
     Here is the conversation so far:
     {conversation_text}
@@ -329,7 +340,7 @@ def generate_chat_reply(messages, system_prompt):
     Do not repeat previous assistant messages.    
     """ 
 
-    # query to AI to get response
+    # Query to AI to get response
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt,
@@ -343,25 +354,25 @@ def generate_chat_reply(messages, system_prompt):
 
 
 def start_chat(first_user_message):
-    # classify the user's first message    
+    # Classify the user's first message    
     classification = classify_first_message(first_user_message)
     intent_label = classification['intent_label']
 
-    # choose the system prompt for that intent  
+    # Choose the system prompt for that intent  
     system_prompt = get_system_prompt_for_intent(intent_label)
 
-    # start the conversation history
+    # Start the conversation history
     messages = [
         {'role': 'user', 'content': first_user_message}
     ]
 
-    # generate the assistant reply
+    # Generate the assistant reply
     assistant_reply = generate_chat_reply(messages, system_prompt)
     
-    # save the assistant reply    
+    # Save the assistant reply    
     messages.append({'role': 'assistant', 'content': assistant_reply})
 
-    # store everything we need for the chat session
+    # Store everything we need for the chat session
     chat_state = {
         'classification': classification,
         'intent_label': intent_label,
@@ -369,31 +380,28 @@ def start_chat(first_user_message):
         'messages': messages
     }
 
-    # return the ff: classification results, intent label, system prompt, messages
+    # Return the ff: classification results, intent label, system prompt, messages
     return chat_state
 
 
 def continue_chat(chat_state, new_user_message):
-    # add the new user message    
+    # Add the new user message    
     chat_state['messages'].append({
         'role': 'user',
         'content': new_user_message
     })
 
-    # generate assistant reply using conversation history    
+    # Generate assistant reply using conversation history    
     assistant_reply = generate_chat_reply(chat_state['messages'], chat_state['system_prompt'])
     
-    # save the assistant reply    
+    # Save the assistant reply    
     chat_state['messages'].append({'role': 'assistant', 'content': assistant_reply})
 
-    # save assistant reply
     return assistant_reply
 
 
 
-
-####### CHAT LOGIC
-
+##### CHAT LOGIC
 if "chat_state" not in st.session_state:
     st.session_state.chat_state = None
 
@@ -408,8 +416,7 @@ if st.session_state.chat_state:
 
 
 
-####### STARTER PROMPTS
-
+##### STARTER PROMPTS
 starter_prompt_area = st.empty()
 
 selected_prompt = None
@@ -439,7 +446,7 @@ if st.session_state.chat_state is None:
                     starter_prompt_area.empty()
 
                     with starter_prompt_area.container():
-                        st.markdown("*Got it...*")
+                        st.markdown(TEXT[language]["got_it"])
                     
                     time.sleep(0.3)
 
@@ -451,18 +458,13 @@ if st.session_state.chat_state is None:
                     st.rerun()
 
 
-######## CHAT INPUT
-
-user_input = st.chat_input(
-    "Type your message here..."
-)
+##### CHAT INPUT
+user_input = st.chat_input(TEXT[language]["input_box"])
 
 if selected_prompt:
     user_input = selected_prompt
-
-
+    
 if user_input:
-
     starter_prompt_area.empty()
 
     with st.chat_message("user"):
@@ -481,8 +483,7 @@ if user_input:
 
 
     with st.chat_message("assistant"):
-
-        with st.spinner("Thinking..."):
+        with st.spinner(TEXT[language]["thinking"]):
             time.sleep(0.8)
         
         placeholder = st.empty()
@@ -495,3 +496,186 @@ if user_input:
             time.sleep(0.06)
 
         placeholder.markdown(displayed_text)
+
+
+
+##### CONVERSATION SUMMARIES
+# Setting up summaries
+if "reflection" not in st.session_state:
+    st.session_state.reflection = None
+
+def conversation_to_text(chat_state):
+
+    transcript = ""
+
+    for message in chat_state["messages"]:
+        role = message["role"].upper()
+        transcript += f"{role}: {message['content']}\n\n"
+
+    return transcript
+
+def generate_reflection(chat_state):
+
+    transcript = conversation_to_text(chat_state)
+
+    prompt = f"""
+    Create a warm reflection based on the conversation.
+
+    The reflection should:
+    - summarize the user's main concerns
+    - acknowledge one strength they showed
+    - suggest one gentle next step
+    - finish with a short encouraging quote
+
+    Write ALL output in English.
+
+    Return ONLY valid JSON.
+
+    Do not include markdown.
+    Do not include ```json.
+    Do not include any explanation.
+
+    {{
+        "title": "Today's Conversation",
+        "what_was_on_your_mind": "<summary>",
+        "strengths": "<strength>",
+        "next_steps": "<next_step>",
+        "encouraging_quote": "<quote>"
+    }}
+
+    Each value should be no more than 2 to 3 sentences.
+    Keep the tone warm, supportive, and non-judgmental.
+
+    Conversation:
+
+    {transcript}
+    """
+    
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    text = response.text.strip()
+
+    if text.startswith("```json"):
+        text = text.replace("```json", "", 1)
+
+    if text.endswith("```"):
+        text = text[:-3]
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        st.error(TEXT[language]["error"])
+        return None
+    
+
+#Allowing in-app translation
+def translate_reflection(reflection):
+
+    prompt = f"""
+Translate the VALUES of this JSON into Japanese.
+
+Do NOT change the keys.
+
+Return ONLY valid JSON.
+
+{json.dumps(reflection)}
+"""
+    
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    return json.loads(response.text)
+
+
+#Allowing user to make reflection
+if st.session_state.chat_state is not None:
+
+    if st.button(TEXT[language]["reflection"], type="primary"):
+        
+        with st.spinner(TEXT[language]["make_reflection"]):
+        
+            st.session_state.reflection = generate_reflection(
+                st.session_state.chat_state
+            )
+
+        
+if st.session_state.reflection:
+    reflection = st.session_state.reflection
+
+    st.header(reflection["title"])
+
+    st.subheader("What Was On Your Mind?")
+    st.write(reflection["what_was_on_your_mind"])
+
+    st.subheader("Strengths")
+    st.write(reflection["strengths"])
+
+    st.subheader("Next Steps")
+    st.write(reflection["next_steps"])
+
+    st.subheader("Remember This")
+    st.write(reflection["encouraging_quote"])
+
+
+#Allowing user to translate into Japanese
+if st.session_state.reflection is not None:
+        
+    if st.button(TEXT[language]["translate"], type = "primary"):
+        st.session_state.reflection_japanese = translate_reflection(
+        st.session_state.reflection
+    )
+
+
+#pdf download (only in English)
+def make_pdf(reflection, filename):
+    doc = SimpleDocTemplate(filename)
+    styles = getSampleStyleSheet()
+
+    story = []
+
+    story.append(Paragraph("<b>Holding Steady</b>", styles["Title"]))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(reflection["title"], styles["Heading1"]))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("<b>What Was On Your Mind?</b>", styles["Heading2"]))
+    story.append(Paragraph(reflection["what_was_on_your_mind"], styles["BodyText"]))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("<b>Strengths</b>", styles["Heading2"]))
+    story.append(Paragraph(reflection["strengths"], styles["BodyText"]))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("<b>Next Steps</b>", styles["Heading2"]))
+    story.append(Paragraph(reflection["next_steps"], styles["BodyText"]))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("<b>Remember This</b>", styles["Heading2"]))
+    story.append(Paragraph(reflection["encouraging_quote"], styles["BodyText"]))
+
+    doc.build(story)
+
+    return filename
+
+
+if st.session_state.reflection is not None:
+
+    english_pdf = make_pdf(
+        st.session_state.reflection,
+        "Holding_Steady_Reflection_EN.pdf"
+    )
+
+    with open(english_pdf, "rb") as f:
+        st.download_button(
+            TEXT[language]["download"],
+            data=f,
+            file_name="Holding_Steady_Reflection.pdf",
+            mime="application/pdf",
+            type="primary"
+        )
