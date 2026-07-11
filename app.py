@@ -30,7 +30,7 @@ TEXT = {
         "error": "Couldn't create reflection. Please try again.",
         "reflection": "Create Reflection",
         "make_reflection": "Creating Reflection...",
-        "translate": "Translate",
+        "translate": "Reflection Language",
         "download": "Download Reflection"
     },
     "日本語":{
@@ -53,7 +53,7 @@ TEXT = {
         "error": "作成できませんでした。もう一度お試しください。",
         "reflection": "会話のまとめを作成",
         "make_reflection": "作成中...",
-        "translate": "日本語に翻訳",
+        "translate": "会話のまとめの言語",
         "download": "英語版をダウンロード"
     }
 }
@@ -629,9 +629,25 @@ if st.session_state.chat_state is not None:
             )
 
         
-if st.session_state.reflection:
-    reflection = st.session_state.reflection
+#Allowing user to translate into Japanese
+if st.session_state.reflection is not None:
+    display_language = st.radio(
+        TEXT[language]["translate"],
+        ["English", "日本語"],
+        horizontal=True
+    )        
 
+
+if st.session_state.reflection:
+    if display_language == "English":
+        reflection = st.session_state.reflection
+    else:
+        if st.session_state.reflection_japanese is None:
+            st.session_state.reflection_japanese = translate_reflection(
+                st.session_state.reflection
+            )
+        reflection = st.session_state.reflection_japanese
+    
     st.header(reflection["title"])
 
     st.subheader("What Was On Your Mind?")
@@ -645,15 +661,6 @@ if st.session_state.reflection:
 
     st.subheader("Remember This")
     st.write(reflection["encouraging_quote"])
-
-
-#Allowing user to translate into Japanese
-if st.session_state.reflection is not None:
-        
-    if st.button(TEXT[language]["translate"], type = "primary"):
-        st.session_state.reflection_japanese = translate_reflection(
-        st.session_state.reflection
-    )
 
 
 #pdf download (only in English)
