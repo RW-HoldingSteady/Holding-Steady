@@ -710,17 +710,17 @@ def make_pdf(reflection, filename, language="en"):
 
     if language == "ja":
         headings = {
-            "mind": "何が心にありましたか？",
-            "strengths": "あなたの強み",
-            "next_steps": "次の一歩",
-            "remember": "覚えておいてほしいこと",
-        }
-    else:
-        headings = {
             "mind": "今日の会話の内容",
             "strengths": "あなたのいいところ",
             "next_steps": "アドバイス",
             "remember": "まとめの言葉",
+        }
+    else:
+        headings = {
+            "mind": "What Was On Your Mind",
+            "strengths": "Strengths",
+            "next_steps": "Next Steps",
+            "remember": "Remember This",
         }
     
     if language == "ja":
