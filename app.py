@@ -8,6 +8,13 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.platypus import Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+
+pdfmetrics.registerFont(
+    UnicodeCIDFont("HeiseiKakuGo-W5")
+)
+
 ##### TRANSLATION DICTIONARY
 TEXT = {
     "English":{
@@ -31,7 +38,10 @@ TEXT = {
         "reflection": "Create Reflection",
         "make_reflection": "Creating Reflection...",
         "translate": "Reflection Language",
-        "download": "Download Reflection"
+        "mind": "What Was On Your Mind?",
+        "strengths": "Strengths",
+        "next_steps": "Next Steps",
+        "remember": "Remember This",
     },
     "日本語":{
         "caption": "「私はできると信じている。なぜなら、今、私たちはそれについて考えているからだ。」",
@@ -54,7 +64,10 @@ TEXT = {
         "reflection": "会話のまとめを作成",
         "make_reflection": "作成中...",
         "translate": "会話のまとめの言語",
-        "download": "英語版をダウンロード"
+        "mind": "今日の会話の内容",
+        "strengths": "あなたのいいところ",
+        "next_steps": "アドバイス",
+        "remember": "まとめの言葉",
     }
 }
 
@@ -274,6 +287,7 @@ Intent-specific response style:
 """
 }
 
+
 ##### HELPER FUNCTIONS
 def classify_first_message(user_message):
     response = client.models.generate_content(
@@ -463,7 +477,7 @@ user_input = st.chat_input(TEXT[language]["input_box"])
 
 if selected_prompt:
     user_input = selected_prompt
-    
+
 if user_input:
     starter_prompt_area.empty()
 
@@ -653,64 +667,126 @@ if st.session_state.reflection is not None:
     
     st.header(reflection["title"])
 
-    st.subheader("What Was On Your Mind?")
+    st.subheader(TEXT[language]["mind"])
     st.write(reflection["what_was_on_your_mind"])
 
-    st.subheader("Strengths")
+    st.subheader(TEXT[language]["strengths"])
     st.write(reflection["strengths"])
 
-    st.subheader("Next Steps")
+    st.subheader(TEXT[language]["next_steps"])
     st.write(reflection["next_steps"])
 
-    st.subheader("Remember This")
+    st.subheader(TEXT[language]["remember"])
     st.write(reflection["encouraging_quote"])
 
 
+
 #pdf download (only in English)
-def make_pdf(reflection, filename):
+def make_pdf(reflection, filename, language="en"):
     doc = SimpleDocTemplate(filename)
-    styles = getSampleStyleSheet()
+    styles=getSampleStyleSheet()
+    from reportlab.lib.styles import ParagraphStyle
+
+    jp_style = ParagraphStyle(
+        "JPBody",
+        parent=styles["BodyText"],
+        fontName="HeiseiKakuGo-W5",
+        fontSize=12,
+        leading=18
+    )
+
+    jp_heading = ParagraphStyle(
+        "JPHeading",
+        parent=styles["Heading2"],
+        fontName="HeiseiKakuGo-W5"
+    )
+
+    if language == "ja":
+        body_style = jp_style
+        heading_style = jp_heading
+    else:
+        body_style = styles["BodyText"]
+        heading_style = styles["Heading2"]
+
+    if language == "ja":
+        headings = {
+            "mind": "何が心にありましたか？",
+            "strengths": "あなたの強み",
+            "next_steps": "次の一歩",
+            "remember": "覚えておいてほしいこと",
+        }
+    else:
+        headings = {
+            "mind": "今日の会話の内容",
+            "strengths": "あなたのいいところ",
+            "next_steps": "アドバイス",
+            "remember": "まとめの言葉",
+        }
+    
+    if language == "ja":
+        title_style = ParagraphStyle(
+            "JPTitle",
+            parent=styles["Title"],
+            fontName="HeiseiKakuGo-W5",
+        )
+    else:
+        title_style = styles["Title"]
 
     story = []
 
     story.append(Paragraph("<b>Holding Steady</b>", styles["Title"]))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph(reflection["title"], styles["Heading1"]))
+    story.append(Paragraph(reflection["title"], title_style))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph("<b>What Was On Your Mind?</b>", styles["Heading2"]))
+    story.append(Paragraph(f"<b>{headings['mind']}</b>", styles["Heading2"]))
     story.append(Paragraph(reflection["what_was_on_your_mind"], styles["BodyText"]))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph("<b>Strengths</b>", styles["Heading2"]))
+    story.append(Paragraph("<b>{headings['strengths']}</b>", styles["Heading2"]))
     story.append(Paragraph(reflection["strengths"], styles["BodyText"]))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph("<b>Next Steps</b>", styles["Heading2"]))
+    story.append(Paragraph("<b>{headings['next_steps']}</b>", styles["Heading2"]))
     story.append(Paragraph(reflection["next_steps"], styles["BodyText"]))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph("<b>Remember This</b>", styles["Heading2"]))
+    story.append(Paragraph("<b>{headings['remember']}</b>", styles["Heading2"]))
     story.append(Paragraph(reflection["encouraging_quote"], styles["BodyText"]))
 
     doc.build(story)
-
     return filename
 
 
 if st.session_state.reflection is not None:
-
     english_pdf = make_pdf(
         st.session_state.reflection,
-        "Holding_Steady_Reflection_EN.pdf"
+        "Holding_Steady_Reflection_EN.pdf",
+        language="en"
+    )
+
+if st.session_state.reflection_japanese is not None:
+    japanese_pdf = make_pdf(
+        st.session_state.reflection_japanese,
+        "Holding_Steady_Reflection_JP.pdf",
+        language="ja"
     )
 
     with open(english_pdf, "rb") as f:
         st.download_button(
-            TEXT[language]["download"],
+            "Download English Reflection",
             data=f,
-            file_name="Holding_Steady_Reflection.pdf",
+            file_name="Holding_Steady_Reflection_EN.pdf",
             mime="application/pdf",
             type="primary"
+        )
+    
+    with open(japanese_pdf, "rb") as f:
+        st.download_button(
+            "日本語版をダウンロード",
+            data=f,
+            file_name="Holding_Steady_Reflection_JP.pdf",
+            mime="application/pdf",
+            type="secondary"
         )
