@@ -734,26 +734,26 @@ def make_pdf(reflection, filename, language="en"):
 
     story = []
 
-    story.append(Paragraph("<b>Holding Steady</b>", styles["Title"]))
+    story.append(Paragraph("<b>Holding Steady</b>", title_style))
     story.append(Spacer(1, 12))
 
     story.append(Paragraph(reflection["title"], title_style))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph(f"<b>{headings['mind']}</b>", styles["Heading2"]))
-    story.append(Paragraph(reflection["what_was_on_your_mind"], styles["BodyText"]))
+    story.append(Paragraph(f"<b>{headings['mind']}</b>", heading_style))
+    story.append(Paragraph(reflection["what_was_on_your_mind"], body_style))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph("<b>{headings['strengths']}</b>", styles["Heading2"]))
-    story.append(Paragraph(reflection["strengths"], styles["BodyText"]))
+    story.append(Paragraph(f"<b>{headings['strengths']}</b>", heading_style))
+    story.append(Paragraph(reflection["strengths"], body_style))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph("<b>{headings['next_steps']}</b>", styles["Heading2"]))
-    story.append(Paragraph(reflection["next_steps"], styles["BodyText"]))
+    story.append(Paragraph(f"<b>{headings['next_steps']}</b>", heading_style))
+    story.append(Paragraph(reflection["next_steps"], body_style))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph("<b>{headings['remember']}</b>", styles["Heading2"]))
-    story.append(Paragraph(reflection["encouraging_quote"], styles["BodyText"]))
+    story.append(Paragraph(f"<b>{headings['remember']}</b>", heading_style))
+    story.append(Paragraph(reflection["encouraging_quote"], body_style))
 
     doc.build(story)
     return filename
