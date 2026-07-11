@@ -766,13 +766,6 @@ if st.session_state.reflection is not None:
         language="en"
     )
 
-if st.session_state.reflection_japanese is not None:
-    japanese_pdf = make_pdf(
-        st.session_state.reflection_japanese,
-        "Holding_Steady_Reflection_JP.pdf",
-        language="ja"
-    )
-
     with open(english_pdf, "rb") as f:
         st.download_button(
             "Download English Reflection",
@@ -781,6 +774,13 @@ if st.session_state.reflection_japanese is not None:
             mime="application/pdf",
             type="primary"
         )
+
+if st.session_state.reflection_japanese is not None:
+    japanese_pdf = make_pdf(
+        st.session_state.reflection_japanese,
+        "Holding_Steady_Reflection_JP.pdf",
+        language="ja"
+    )
     
     with open(japanese_pdf, "rb") as f:
         st.download_button(
