@@ -118,11 +118,11 @@ with st.sidebar:
     st.space("medium")
 
     st.header(TEXT[language]["moufu"])
-    st.video("/Users/Rikuto/Desktop/Delta AI/Moufu_vid.mp4", autoplay=True, muted=True)
+    st.video("Moufu_vid.mp4", autoplay=True, muted=True)
 
 
 ##### CONFIGURE CHAT
-GEMINI_API_KEY = "AIzaSyCtaXr-zVqJi03gcanCb4SRF7VgKQwGrmA"
+GEMINI_API_KEY = "st.secrets[API_KEY]"
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 ##### FIX VARIABLES
