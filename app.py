@@ -2,7 +2,6 @@ import streamlit as st
 from google import genai
 from google.genai import types
 import json
-import time
 
 from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.platypus import Spacer
@@ -31,6 +30,7 @@ TEXT = {
         "option4": "🐆 Tired",
         "option5": "🐕 Can you listen?",
         "option6": "🦔 Something happened",
+        "summary": "Conversation Summary",
         "got_it": "Got it...",
         "input_box": "Type your message here...",
         "thinking": "Thinking...",
@@ -57,6 +57,7 @@ TEXT = {
         "option4": "🐆 疲れた",
         "option5": "🐕 聞いてほしい",
         "option6": "🦔 何かがあった",
+        "summary": "会話のまとめ",
         "got_it": "考え中...",
         "input_box": "メッセージを入力...",
         "thinking": "考え中...",
@@ -117,25 +118,14 @@ with st.sidebar:
     st.space("medium")
 
     st.header(TEXT[language]["moufu"])
-    st.video("Moufu_vid.mp4", autoplay=True, muted=True)
+    st.video("/Users/Rikuto/Desktop/Delta AI/Moufu_vid.mp4", autoplay=True, muted=True)
 
 
 ##### CONFIGURE CHAT
-GEMINI_API_KEY = st.secrets["API_KEY"]
+GEMINI_API_KEY = "AIzaSyCtaXr-zVqJi03gcanCb4SRF7VgKQwGrmA"
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 ##### FIX VARIABLES
-INTENT_LABELS = [
-    "venting",
-    "advice",
-    "grounding",
-    "agency",
-    "recognition",
-    "reassurance",
-    "safety",
-    "general_support"
-]
-
 CLASSIFIER_SYSTEM_PROMPT = """
 You are an intent classifier for the Feeling Heard app.
 
@@ -194,8 +184,6 @@ BASE_ROLE = """
 You are a warm, gentle, and emotionally supportive AI companion.
 Your job is to help the user feel heard, understood, and less alone.
 """
-
-LANGUAGE_SETTING = f"""Please use {language} language in conversing with the user"""
 
 APP_CONTEXT = """
 You are part of the Feeling Heard app. 
@@ -287,7 +275,6 @@ Intent-specific response style:
 """
 }
 
-
 ##### HELPER FUNCTIONS
 def classify_first_message(user_message):
     response = client.models.generate_content(
@@ -302,7 +289,7 @@ def classify_first_message(user_message):
 
     output = json.loads(response.text)
 
-    if output['intent_label'] not in INTENT_LABELS:
+    if output['intent_label'] not in INTENT_RESPONSE_RULES:
         output['intent_label'] = 'general_support'
 
     return output
@@ -323,7 +310,7 @@ def get_system_prompt_for_intent(intent_label):
 
 {BASE_SAFETY_RULES}
 
-{LANGUAGE_SETTING}
+Please use {language}
 """
 
     return system_prompt
@@ -389,7 +376,6 @@ def start_chat(first_user_message):
     # Store everything we need for the chat session
     chat_state = {
         'classification': classification,
-        'intent_label': intent_label,
         'system_prompt': system_prompt,
         'messages': messages
     }
@@ -433,8 +419,6 @@ if st.session_state.chat_state:
 ##### STARTER PROMPTS
 starter_prompt_area = st.empty()
 
-selected_prompt = None
-
 if st.session_state.chat_state is None:
 
     with starter_prompt_area.container():
@@ -456,15 +440,11 @@ if st.session_state.chat_state is None:
             with cols[i % 3]:
                 if st.button(prompt, type="primary"):
 
-                    #Remove prompt area
+                    # Remove prompt area
                     starter_prompt_area.empty()
 
                     with starter_prompt_area.container():
                         st.markdown(TEXT[language]["got_it"])
-                    
-                    time.sleep(0.3)
-
-                    selected_prompt = prompt
 
                     # Start chat
                     st.session_state.chat_state = start_chat(prompt)
@@ -474,9 +454,6 @@ if st.session_state.chat_state is None:
 
 ##### CHAT INPUT
 user_input = st.chat_input(TEXT[language]["input_box"])
-
-if selected_prompt:
-    user_input = selected_prompt
 
 if user_input:
     starter_prompt_area.empty()
@@ -497,8 +474,7 @@ if user_input:
 
 
     with st.chat_message("assistant"):
-        with st.spinner(TEXT[language]["thinking"]):
-            time.sleep(0.8)
+        st.spinner(TEXT[language]["thinking"])
         
         placeholder = st.empty()
 
@@ -507,7 +483,6 @@ if user_input:
         for word in bot_reply.split():
             displayed_text += word + " "
             placeholder.markdown(displayed_text + "▌")
-            time.sleep(0.06)
 
         placeholder.markdown(displayed_text)
 
@@ -518,22 +493,46 @@ if user_input:
 if "reflection" not in st.session_state:
     st.session_state.reflection = None
 
-if "reflection_japanese" not in st.session_state:
-    st.session_state.reflection_japanese = None
+def clean_json_response(text):
+    text = text.strip()
 
-def conversation_to_text(chat_state):
+    if text.startswith("```json"):
+        text = text.replace("```json", "", 1)
+    
+    if text.startswith("```"):
+        text = text.replace("```", "", 1)
+    
+    if text.endswith("```"):
+        text = text[:-3]
+    
+    return text.strip()
 
-    transcript = ""
 
-    for message in chat_state["messages"]:
-        role = message["role"].upper()
-        transcript += f"{role}: {message['content']}\n\n"
+def generate_json(prompt, language):
 
-    return transcript
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
 
-def generate_reflection(chat_state):
+    text = clean_json_response(response.text)
 
-    transcript = conversation_to_text(chat_state)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        st.error(TEXT[language]["error"])
+        return {
+            "title": "It's not working today. Try again later.",
+            "what_was_on_your_mind": None,
+            "strengths": None,
+            "next_steps": None,
+            "encouraging_quote": None
+        }
+
+
+def generate_reflection(chat_state, language):
+
+    transcript = format_conversation(chat_state["messages"])
 
     prompt = f"""
     Create a warm reflection based on the conversation.
@@ -544,7 +543,7 @@ def generate_reflection(chat_state):
     - suggest one gentle next step
     - finish with a short encouraging quote
 
-    Write ALL output in English.
+    Write ALL output in {language}.
 
     Return ONLY valid JSON.
 
@@ -568,225 +567,166 @@ def generate_reflection(chat_state):
     {transcript}
     """
     
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-
-    text = response.text.strip()
-
-    if text.startswith("```json"):
-        text = text.replace("```json", "", 1)
-
-    if text.endswith("```"):
-        text = text[:-3]
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        st.error(TEXT[language]["error"])
-        return None
-    
+    return generate_json(prompt, language)
+        
 
 #Allowing in-app translation
-def translate_reflection(reflection):
+def translate_reflection(reflection, language):
 
     prompt = f"""
-Translate the VALUES of this JSON into Japanese.
+    Translate the VALUES of this JSON into {language}.
 
-Do NOT change the keys.
+    Do NOT change the keys.
 
-Return ONLY valid JSON.
+    Return ONLY valid JSON.
 
-Do not include markdown.
-Do not include ```json.
-Do not include explanations.
-Do not include any text before or after the JSON.
+    Do not include markdown.
+    Do not include ```json.
+    Do not include explanations.
+    Do not include any text before or after the JSON.
 
-{json.dumps(reflection, ensure_ascii=False)}
-"""
+    {json.dumps(reflection, ensure_ascii=False)}
+    """
     
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-
-    text = response.text.strip()
-
-    #Remove markdown fences if Gemini adds them anyway
-    if text.startswith("```json"):
-        text = text.replace("```json", "", 1)
-
-    if text.startswith("```"):
-        text = text.replace("```", "", 1)
-
-    if text.endswith("```"):
-        text = text[:-3]
-
-    text = text.strip()
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        st.error(TEXT[language]["error"])
-        st.write("Gemini returned:")
-        st.code(text)
-        return None
+    return generate_json(prompt, language)
 
 
 #Allowing user to make reflection
-if st.session_state.chat_state is not None:
+if st.session_state.chat_state is not None: 
+    with st.expander(TEXT[language]["summary"]):
+        if st.session_state.chat_state is not None:
+            display_language = st.radio(
+                TEXT[language]["translate"],
+                ["English", "日本語"],
+                horizontal=True
+            )   
 
-    if st.button(TEXT[language]["reflection"], type="primary"):
-        
-        with st.spinner(TEXT[language]["make_reflection"]):
-        
-            st.session_state.reflection = generate_reflection(
-                st.session_state.chat_state
+
+            if st.button(TEXT[language]["reflection"], type="primary"):
+
+
+                with st.spinner(TEXT[language]["make_reflection"]):
+                
+                    st.session_state.reflection = generate_reflection(
+                        st.session_state.chat_state,
+                        display_language
+                    )
+
+                
+        #Allowing user to translate into Japanese
+        if st.session_state.reflection is not None:
+
+            if display_language == language:
+                reflection = st.session_state.reflection
+            else:
+                st.session_state.reflection = translate_reflection(
+                    st.session_state.reflection,
+                    display_language
+                )
+            
+            reflection = st.session_state.reflection
+
+            st.header(reflection["title"])
+
+            st.subheader(TEXT[language]["mind"])
+            st.write(reflection["what_was_on_your_mind"])
+
+            st.subheader(TEXT[language]["strengths"])
+            st.write(reflection["strengths"])
+
+            st.subheader(TEXT[language]["next_steps"])
+            st.write(reflection["next_steps"])
+
+            st.subheader(TEXT[language]["remember"])
+            st.write(reflection["encouraging_quote"])
+
+
+        #pdf download (only in English)
+        def make_pdf(reflection, filename, language="en"):
+            doc = SimpleDocTemplate(filename)
+            styles=getSampleStyleSheet()
+            from reportlab.lib.styles import ParagraphStyle
+
+            jp_style = ParagraphStyle(
+                "JPBody",
+                parent=styles["BodyText"],
+                fontName="HeiseiKakuGo-W5",
+                fontSize=12,
+                leading=18
             )
 
-        
-#Allowing user to translate into Japanese
-if st.session_state.reflection is not None:
-    display_language = st.radio(
-        TEXT[language]["translate"],
-        ["English", "日本語"],
-        horizontal=True
-    )        
-
-
-if st.session_state.reflection is not None:
-    if display_language == "English":
-        reflection = st.session_state.reflection
-    else:
-        if st.session_state.get("reflection_japanese") is None:
-            st.session_state.reflection_japanese = translate_reflection(
-                st.session_state.reflection
+            jp_heading = ParagraphStyle(
+                "JPHeading",
+                parent=styles["Heading2"],
+                fontName="HeiseiKakuGo-W5"
             )
-        reflection = st.session_state.reflection_japanese
-    
-    st.header(reflection["title"])
 
-    st.subheader(TEXT[language]["mind"])
-    st.write(reflection["what_was_on_your_mind"])
+            if language == "ja":
+                body_style = jp_style
+                heading_style = jp_heading
+            else:
+                body_style = styles["BodyText"]
+                heading_style = styles["Heading2"]
 
-    st.subheader(TEXT[language]["strengths"])
-    st.write(reflection["strengths"])
+            ui_language = "日本語" if language == "ja" else "English"
+            
+            if language == "ja":
+                title_style = ParagraphStyle(
+                    "JPTitle",
+                    parent=styles["Title"],
+                    fontName="HeiseiKakuGo-W5",
+                )
+            else:
+                title_style = styles["Title"]
 
-    st.subheader(TEXT[language]["next_steps"])
-    st.write(reflection["next_steps"])
+            story = []
 
-    st.subheader(TEXT[language]["remember"])
-    st.write(reflection["encouraging_quote"])
+            story.append(Paragraph("<b>Holding Steady</b>", title_style))
+            story.append(Spacer(1, 12))
 
+            story.append(Paragraph(reflection["title"], title_style))
+            story.append(Spacer(1, 12))
 
+            story.append(Paragraph(f"<b>{TEXT[ui_language]['mind']}</b>", heading_style))
+            story.append(Paragraph(reflection["what_was_on_your_mind"], body_style))
+            story.append(Spacer(1, 12))
 
-#pdf download (only in English)
-def make_pdf(reflection, filename, language="en"):
-    doc = SimpleDocTemplate(filename)
-    styles=getSampleStyleSheet()
-    from reportlab.lib.styles import ParagraphStyle
+            story.append(Paragraph(f"<b>{TEXT[ui_language]['strengths']}</b>", heading_style))
+            story.append(Paragraph(reflection["strengths"], body_style))
+            story.append(Spacer(1, 12))
 
-    jp_style = ParagraphStyle(
-        "JPBody",
-        parent=styles["BodyText"],
-        fontName="HeiseiKakuGo-W5",
-        fontSize=12,
-        leading=18
-    )
+            story.append(Paragraph(f"<b>{TEXT[ui_language]['next_steps']}</b>", heading_style))
+            story.append(Paragraph(reflection["next_steps"], body_style))
+            story.append(Spacer(1, 12))
 
-    jp_heading = ParagraphStyle(
-        "JPHeading",
-        parent=styles["Heading2"],
-        fontName="HeiseiKakuGo-W5"
-    )
+            story.append(Paragraph(f"<b>{TEXT[ui_language]['remember']}</b>", heading_style))
+            story.append(Paragraph(reflection["encouraging_quote"], body_style))
 
-    if language == "ja":
-        body_style = jp_style
-        heading_style = jp_heading
-    else:
-        body_style = styles["BodyText"]
-        heading_style = styles["Heading2"]
-
-    if language == "ja":
-        headings = {
-            "mind": "今日の会話の内容",
-            "strengths": "あなたのいいところ",
-            "next_steps": "アドバイス",
-            "remember": "まとめの言葉",
-        }
-    else:
-        headings = {
-            "mind": "What Was On Your Mind",
-            "strengths": "Strengths",
-            "next_steps": "Next Steps",
-            "remember": "Remember This",
-        }
-    
-    if language == "ja":
-        title_style = ParagraphStyle(
-            "JPTitle",
-            parent=styles["Title"],
-            fontName="HeiseiKakuGo-W5",
-        )
-    else:
-        title_style = styles["Title"]
-
-    story = []
-
-    story.append(Paragraph("<b>Holding Steady</b>", title_style))
-    story.append(Spacer(1, 12))
-
-    story.append(Paragraph(reflection["title"], title_style))
-    story.append(Spacer(1, 12))
-
-    story.append(Paragraph(f"<b>{headings['mind']}</b>", heading_style))
-    story.append(Paragraph(reflection["what_was_on_your_mind"], body_style))
-    story.append(Spacer(1, 12))
-
-    story.append(Paragraph(f"<b>{headings['strengths']}</b>", heading_style))
-    story.append(Paragraph(reflection["strengths"], body_style))
-    story.append(Spacer(1, 12))
-
-    story.append(Paragraph(f"<b>{headings['next_steps']}</b>", heading_style))
-    story.append(Paragraph(reflection["next_steps"], body_style))
-    story.append(Spacer(1, 12))
-
-    story.append(Paragraph(f"<b>{headings['remember']}</b>", heading_style))
-    story.append(Paragraph(reflection["encouraging_quote"], body_style))
-
-    doc.build(story)
-    return filename
+            doc.build(story)
+            return filename
 
 
-if st.session_state.reflection is not None:
-    english_pdf = make_pdf(
-        st.session_state.reflection,
-        "Holding_Steady_Reflection_EN.pdf",
-        language="en"
-    )
+        # Dynamic PDF download handling both English and Japanese automatically
+        if st.session_state.reflection is not None:
+            # 1. Map the selection to the correct language code for ReportLab styles
+            pdf_lang = "ja" if display_language == "日本語" else "en"
+            filename = f"Holding_Steady_Reflection_{pdf_lang.upper()}.pdf"
 
-    with open(english_pdf, "rb") as f:
-        st.download_button(
-            "Download English Reflection",
-            data=f,
-            file_name="Holding_Steady_Reflection_EN.pdf",
-            mime="application/pdf",
-            type="primary"
-        )
+            # 2. Generate the PDF using the mapped language
+            generated_pdf = make_pdf(
+                st.session_state.reflection,
+                filename,
+                language=pdf_lang
+            )
 
-if st.session_state.reflection_japanese is not None:
-    japanese_pdf = make_pdf(
-        st.session_state.reflection_japanese,
-        "Holding_Steady_Reflection_JP.pdf",
-        language="ja"
-    )
-    
-    with open(japanese_pdf, "rb") as f:
-        st.download_button(
-            "日本語版をダウンロード",
-            data=f,
-            file_name="Holding_Steady_Reflection_JP.pdf",
-            mime="application/pdf",
-            type="primary"
-        )
+            # 3. Present a single dynamic download button
+            button_label = "日本語版をダウンロード" if pdf_lang == "ja" else f"Download {display_language} Reflection"
+            
+            with open(generated_pdf, "rb") as f:
+                st.download_button(
+                    button_label,
+                    data=f,
+                    file_name=filename,
+                    mime="application/pdf",
+                    type="primary"
+                )
