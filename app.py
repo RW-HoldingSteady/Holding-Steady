@@ -122,7 +122,7 @@ with st.sidebar:
 
 
 ##### CONFIGURE CHAT
-GEMINI_API_KEY = "st.secrets[API_KEY]"
+GEMINI_API_KEY = st.secrets["API_KEY"]
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 ##### FIX VARIABLES
